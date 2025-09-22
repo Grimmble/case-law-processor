@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:17.6
+    container_name: case-law-postgres
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - case-law-network
+
+  migrate:
+    build: .
+    container_name: case-law-migrate
+    depends_on:
+      - postgres
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    command: [ "sh", "-c", "npm install && npm run migration:run" ]
+    networks:
+      - case-law-network
+
+  app:
+    build: .
+    container_name: case-law-app
+    ports:
+      - "${NEST_PORT}:3000"
+    depends_on:
+      - migrate
+    environment:
+      NEST_PORT: "${NEST_PORT}"
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+    networks:
+      - case-law-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+
+networks:
+  case-law-network:
+    driver: bridge
